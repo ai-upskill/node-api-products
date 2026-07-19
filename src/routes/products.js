@@ -56,22 +56,65 @@ async function applyFilters(queryBuilder, request) {
 
 async function runQuery(req, res, request) {
   const { page, limit, usePagination } = request.pagination;
-  let query = supabase.from('products').select('*', { count: 'exact' });
-  query = await applyFilters(query, request);
 
-  if (usePagination) {
-    query = query.limit(limit).offset((page - 1) * limit);
+  // Use OpenSearch for fast text & filtered search when available
+  try {
+    const { client } = require('../opensearchClient');
+    const must = [];
+    const should = [];
+
+    if (request.q) {
+      should.push({
+        multi_match: {
+          query: request.q,
+          fields: ['name^3', 'description', 'brand^2', 'sku'],
+          type: 'best_fields'
+        }
+      });
+    }
+
+    if (request.name) must.push({ match_phrase: { name: request.name } });
+    if (request.category) must.push({ term: { category: request.category } });
+    if (request.brand) must.push({ term: { brand: request.brand } });
+    if (request.sku) must.push({ term: { sku: request.sku } });
+    if (request.status) must.push({ term: { status: request.status } });
+    if (request.active !== undefined) must.push({ term: { is_active: request.active } });
+    if (request.minPrice !== undefined || request.maxPrice !== undefined) {
+      const range = {};
+      if (request.minPrice !== undefined) range.gte = request.minPrice;
+      if (request.maxPrice !== undefined) range.lte = request.maxPrice;
+      must.push({ range: { price: range } });
+    }
+
+    const body = { query: { bool: {} } };
+    if (must.length) body.query.bool.must = must;
+    if (should.length) body.query.bool.should = should;
+    if (should.length && !must.length) body.query.bool.minimum_should_match = 1;
+
+    const sort = [];
+    if (request.sortBy === 'price') sort.push({ price: { order: request.sortOrder } });
+    else if (request.sortBy === 'name') sort.push({ name: { order: request.sortOrder } });
+    else sort.push({ created_at: { order: request.sortOrder } });
+
+    const esResponse = await client.search({
+      index: 'products',
+      body: {
+        ...body,
+        sort,
+        from: usePagination ? (page - 1) * limit : 0,
+        size: usePagination ? limit : 50
+      }
+    });
+
+    const hits = esResponse.body.hits || { hits: [], total: { value: 0 } };
+    const data = (hits.hits || []).map((h) => ({ id: h._id, ...h._source }));
+    const total = hits.total ? (hits.total.value || 0) : 0;
+    const pagination = usePagination ? createPaginationMetadata(page, limit, total) : null;
+    return res.json({ data, pagination });
+  } catch (err) {
+    console.warn('OpenSearch unavailable, aborting search:', err.message || err);
+    return res.status(503).json({ error: 'OpenSearch unavailable', details: String(err.message || err) });
   }
-
-  const { data, error, count } = await query;
-
-  if (error) {
-    return res.status(500).json({ error: error.message });
-  }
-
-  const pagination = usePagination ? createPaginationMetadata(page, limit, count || data.length) : null;
-
-  return res.json({ data, pagination });
 }
 
 router.get('/', async (req, res) => {

@@ -17,8 +17,8 @@ function parseArgValue(flag, fallback) {
   return Number.parseInt(fallback, 10);
 }
 
-async function seedProducts({ count = 1_000_000, batchSize = 1000, startAt = 1 } = {}) {
-  const total = Math.max(1, Number.parseInt(count, 10) || 1_000_000);
+async function seedProducts({ count = 1_000_00, batchSize = 1000, startAt = 1 } = {}) {
+  const total = Math.max(1, Number.parseInt(count, 10) || 1_000_00);
   const size = Math.max(1, Number.parseInt(batchSize, 10) || 1000);
   const start = Math.max(1, Number.parseInt(startAt, 10) || 1);
   let inserted = 0;
@@ -52,7 +52,7 @@ async function seedProducts({ count = 1_000_000, batchSize = 1000, startAt = 1 }
 module.exports = { seedProducts };
 
 if (require.main === module) {
-  const targetCount = parseArgValue('--count', process.env.COUNT || '1000000');
+  const targetCount = parseArgValue('--count', process.env.COUNT || '100000');
   const targetBatchSize = parseArgValue('--batch-size', process.env.BATCH_SIZE || '1000');
   const startAt = parseArgValue('--start-at', process.env.START_AT || '1');
 
