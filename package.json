@@ -1,0 +1,28 @@
+{
+  "name": "supabase-products-service",
+  "version": "1.0.0",
+  "description": "Bulk seed, CRUD, and search API for enterprise product catalogs in Supabase",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "seed": "node src/seedProducts.js",
+    "test": "node --test"
+  },
+  "keywords": [
+    "supabase",
+    "express",
+    "products",
+    "node"
+  ],
+  "author": "AI UpSkill",
+  "license": "MIT",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4",
+    "dotenv": "^16.4.3",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}
