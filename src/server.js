@@ -24,6 +24,9 @@ app.use((req, res, next) => {
   next();
 });
 
+app.options('*', cors());
+app.use(cors({ origin: '*' }));
+
 app.use(express.json());
 
 app.get('/health', (_req, res) => {
