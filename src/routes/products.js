@@ -1,51 +1,82 @@
 const express = require('express');
 const { supabase } = require('../supabaseClient');
-const { createPaginationMetadata, normalizePagination } = require('../utils/productUtils');
+const { buildSearchRequest, createPaginationMetadata } = require('../utils/productUtils');
 const { seedProducts } = require('../seedProducts');
 
 const router = express.Router();
 
-async function applyFilters(queryBuilder, query) {
+async function applyFilters(queryBuilder, request) {
   let builder = queryBuilder;
 
-  if (query.category) {
-    builder = builder.eq('category', query.category);
+  if (request.q) {
+    builder = builder.or(`name.ilike.%${request.q}%,description.ilike.%${request.q}%,sku.ilike.%${request.q}%,brand.ilike.%${request.q}%`);
   }
 
-  if (query.brand) {
-    builder = builder.eq('brand', query.brand);
+  if (request.name) {
+    builder = builder.ilike('name', `%${request.name}%`);
   }
 
-  if (query.status) {
-    builder = builder.eq('status', query.status);
+  if (request.category) {
+    builder = builder.eq('category', request.category);
   }
 
-  if (query.active !== undefined) {
-    builder = builder.eq('is_active', query.active === 'true');
+  if (request.brand) {
+    builder = builder.eq('brand', request.brand);
   }
+
+  if (request.sku) {
+    builder = builder.eq('sku', request.sku);
+  }
+
+  if (request.status) {
+    builder = builder.eq('status', request.status);
+  }
+
+  if (request.active !== undefined) {
+    builder = builder.eq('is_active', request.active);
+  }
+
+  if (request.minPrice !== undefined) {
+    builder = builder.gte('price', request.minPrice);
+  }
+
+  if (request.maxPrice !== undefined) {
+    builder = builder.lte('price', request.maxPrice);
+  }
+
+  if (request.type) {
+    builder = builder.or(`type.eq.${request.type},metadata->type.eq.${request.type}`);
+  }
+
+  const sortBy = request.sortBy === 'name' ? 'name' : request.sortBy === 'price' ? 'price' : 'created_at';
+  builder = builder.order(sortBy, { ascending: request.sortOrder === 'asc' });
 
   return builder;
 }
 
+async function runQuery(req, res, request) {
+  const { page, limit, usePagination } = request.pagination;
+  let query = supabase.from('products').select('*', { count: 'exact' });
+  query = await applyFilters(query, request);
+
+  if (usePagination) {
+    query = query.limit(limit).offset((page - 1) * limit);
+  }
+
+  const { data, error, count } = await query;
+
+  if (error) {
+    return res.status(500).json({ error: error.message });
+  }
+
+  const pagination = usePagination ? createPaginationMetadata(page, limit, count || data.length) : null;
+
+  return res.json({ data, pagination });
+}
+
 router.get('/', async (req, res) => {
   try {
-    const { page, limit, usePagination } = normalizePagination(req.query);
-    let query = supabase.from('products').select('*', { count: 'exact' }).order('created_at', { ascending: false });
-    query = await applyFilters(query, req.query);
-
-    if (usePagination) {
-      query = query.range((page - 1) * limit, page * limit - 1);
-    }
-
-    const { data, error, count } = await query;
-
-    if (error) {
-      return res.status(500).json({ error: error.message });
-    }
-
-    const pagination = usePagination ? createPaginationMetadata(page, limit, count || data.length) : null;
-
-    return res.json({ data, pagination });
+    return runQuery(req, res, buildSearchRequest(req.query));
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
@@ -53,34 +84,7 @@ router.get('/', async (req, res) => {
 
 router.get('/search', async (req, res) => {
   try {
-    const term = req.query.q?.trim();
-
-    if (!term) {
-      return res.status(400).json({ error: 'The q query parameter is required.' });
-    }
-
-    const { page, limit, usePagination } = normalizePagination(req.query);
-    let query = supabase
-      .from('products')
-      .select('*', { count: 'exact' })
-      .or(`name.ilike.%${term}%,description.ilike.%${term}%,sku.ilike.%${term}%`)
-      .order('created_at', { ascending: false });
-
-    query = await applyFilters(query, req.query);
-
-    if (usePagination) {
-      query = query.range((page - 1) * limit, page * limit - 1);
-    }
-
-    const { data, error, count } = await query;
-
-    if (error) {
-      return res.status(500).json({ error: error.message });
-    }
-
-    const pagination = usePagination ? createPaginationMetadata(page, limit, count || data.length) : null;
-
-    return res.json({ data, pagination });
+    return runQuery(req, res, buildSearchRequest(req.query));
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }

@@ -80,8 +80,33 @@ function createPaginationMetadata(page, limit, total) {
   };
 }
 
+function buildSearchRequest(query = {}) {
+  const pagination = normalizePagination(query);
+  const activeValue = query.active;
+  const active = activeValue === undefined ? undefined : String(activeValue).toLowerCase() === 'true';
+  const minPrice = query.minPrice !== undefined ? Number.parseFloat(query.minPrice) : undefined;
+  const maxPrice = query.maxPrice !== undefined ? Number.parseFloat(query.maxPrice) : undefined;
+
+  return {
+    q: typeof query.q === 'string' ? query.q.trim() : '',
+    name: typeof query.name === 'string' ? query.name.trim() : '',
+    category: typeof query.category === 'string' ? query.category.trim() : '',
+    brand: typeof query.brand === 'string' ? query.brand.trim() : '',
+    type: typeof query.type === 'string' ? query.type.trim() : '',
+    status: typeof query.status === 'string' ? query.status.trim() : '',
+    sku: typeof query.sku === 'string' ? query.sku.trim() : '',
+    active,
+    minPrice: Number.isFinite(minPrice) ? minPrice : undefined,
+    maxPrice: Number.isFinite(maxPrice) ? maxPrice : undefined,
+    pagination,
+    sortBy: ['price', 'name'].includes(query.sortBy) ? query.sortBy : 'created_at',
+    sortOrder: query.sortOrder === 'asc' ? 'asc' : 'desc'
+  };
+}
+
 module.exports = {
   buildProductRecord,
   normalizePagination,
-  createPaginationMetadata
+  createPaginationMetadata,
+  buildSearchRequest
 };
