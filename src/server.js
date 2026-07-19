@@ -7,22 +7,22 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 3000;
 
-app.use((req, res, next) => {
-  const allowedOrigin = 'https://sfthdg.csb.app';
+// app.use((req, res, next) => {
+//   const allowedOrigin = 'https://sfthdg.csb.app';
 
-  if (req.headers.origin === allowedOrigin) {
-    res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
-  }
+//   if (req.headers.origin === allowedOrigin) {
+//     res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
+//   }
 
-  res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+//   res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+//   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
 
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(204);
-  }
+//   if (req.method === 'OPTIONS') {
+//     return res.sendStatus(204);
+//   }
 
-  next();
-});
+//   next();
+// });
 
 app.options('*', cors());
 app.use(cors({ origin: '*' }));
